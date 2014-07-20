@@ -1,20 +1,88 @@
-# Reproducible Research: Peer Assessment 1
+Peer Assessment 1  
+=====================
+assignment by Jaeyoon
 
+###Loading and preprocessing the data  
+Codes below load data, and process it into a format suitable for analysis.
+```{r loading and preprocessing,warning=FALSE}
+data<-read.table("activity.csv",header=TRUE,sep=",")
+library(date) # execute code [install.packages("date")] if you haven't installed packages "date" 
+data$date<-as.Date(data$date) # transform data's class into 'date'
+```
 
-## Loading and preprocessing the data
+###Q1. What is mean total number of steps taken per day(missing values ignored)
+- Codes below make subset for analysis.
+```{r q1_1}
+subset_day<-aggregate(data$steps,by=list(data$date),FUN=sum) # makes subset which counts steps by(per) date 
+head(subset_day) # shows head of subset
+```
+- Histogram of the total number of steps taken each day
+```{r q1_2,results='asis'}
+hist(subset_day[[2]],main="Total number of steps taken each day",xlab="sum of steps") # makes histogram
+```  
 
+- Mean and median total number of steps taken per day
+```{r q1_3}
+mean<-mean(subset_day[[2]],na.rm=TRUE)
+median<-median(subset_day[[2]],na.rm=TRUE)
+```
+mean : **`r mean`** / median : **`r median`**
+  
+###Q2. What is the average daily activity pattern?
+- Codes below make subset for analysis.
+```{r q2_1}
+subset_itv<-aggregate(data$steps,by=list(data$interval),FUN=mean,na.rm=TRUE) # makes subset which average(mean) steps by(per) intervals
+head(subset_itv) # shows head of subset
+```
+- Plot of the average daily activity pattern
+```{r q2_2,results='asis'}
+plot(subset_itv,main="Average daily activity pattern",type="l",xlab="5-minute interval",ylab="average number of steps taken, averaged across all days") # makes plot
+max_row<-subset_itv[which.max(subset_itv[[2]]),1] # finds interval contains maximum number of steps
+points(max_row,max(subset_itv[[2]]),pch=22) # indicate maximum value
+```
 
+The interval which contains maximum number of steps is **`r max_row`** 
 
-## What is mean total number of steps taken per day?
+###Imputing missing values
+1. Total number of missing values in the dataset
+```{r imputting_1}
+nadata<-is.na(data[1])
+n_nadata<-sum(nadata) # extract and count missing values
+```
+numbers of missing values : **`r n_nadata`**  
+  
+2&3. Strategy for filling in all of the missing values in the dataset
+  -> use the mean for the interval
+```{r imputting_2}
+colnames(subset_itv)<-c("interval","steps_mean")
+new_data<-merge(data,subset_itv,by="interval")
+new_data$steps[is.na(new_data$steps)]<-new_data$steps_mean[is.na(new_data$steps)] # replace NA value with corresponding(same interval mean) value
+head(new_data) # show head of new data(filled)
+```  
+  -> new dataset(missing data filled)
+  
+4. Histogram/mean and median of the total number of seps taken each day
+```{r imputting_3,results='asis'}
+new_subset_day<-aggregate(new_data$steps,by=list(new_data$date),FUN=sum)
+hist(new_subset_day[[2]],main="Total number of steps taken each day",xlab="sum of steps") # makes histogram
+new_mean<-mean(new_subset_day[[2]])
+new_median<-median(new_subset_day[[2]])
+```  
+mean : **`r new_mean`** / median : **`r new_median`**
+mean value isn't changed, with equivalent median and variation decreasing
 
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+###Q3. Are there differneces in activity patterns between weekdays and weekends?
+1. Codes make new factor variable (weekday/weekend)
+```{r}
+wdwe<-factor(weekdays(new_data$date)) # listed by '~days'
+levels(wdwe) # show factors(in Korean)
+levels(wdwe)<-c("weekday","weekday","weekday","weekday","weekend","weekend","weekday") # merge factors
+new<-cbind(new_data,wdwe) # mergy factors into data
+```
+2. Make a panel plot
+```{r}
+new_subset_itv<-aggregate(new$steps,by=list(new$wdwe,new$interval),FUN=mean,na.rm=TRUE)
+colnames(new_subset_itv)<-c("weekday","interval","steps")
+library(lattice)
+xyplot(new_subset_itv$steps~new_subset_itv$interval|new_subset_itv$weekday,layout=c(1,2),type="l",xlab="Interval",ylab="Number of steps")
+```
